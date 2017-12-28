@@ -24,6 +24,7 @@ $(OBJS): %.o:%.c
 
 libROHCcomp.dll: $(OBJS)
 	$(CC) $^ -o $@ $(LDSHFLAGS) 
+	cp $@ -r ../app/
 
 	
 .PHONY: clean 	

@@ -57,7 +57,6 @@ static bool fill_cid_and_first_octet(rohc_buf_t *const rohc_hdr,
     }
     else if (cid_type == ROHC_LARGE_CID)
     {
-        assert(cid <= ROHC_LARGE_CID_MAX);
         buf[0] = first_octect;
         buf[1] = cid;
         len = 2;
@@ -110,7 +109,7 @@ static bool encode_IR_header(rohc_comp_context_t *const ctx, rohc_buf_t *const I
         return false;
     }
 
-    if (udp_ipv4_code_dynamic(&ctx->udp_ip_ctx, IR_hdr))
+    if (!udp_ipv4_code_dynamic(&ctx->udp_ip_ctx, IR_hdr))
     {
         ROHC_LOG_ERROR("encode dynamic chain fail\n");
         assert(0);
@@ -164,7 +163,7 @@ static bool encode_IR_DYN_header(rohc_comp_context_t *const ctx, rohc_buf_t *con
         return false;
     }
 
-    if (fill_cid_and_first_octet(IR_dyn_hdr, ctx->cfg->cid_type, f_octect, ctx->cid))
+    if (!fill_cid_and_first_octet(IR_dyn_hdr, ctx->cfg->cid_type, f_octect, ctx->cid))
     {
         ROHC_LOG_ERROR( "invalid cid and 1st byte fill\n");
         assert(0);
@@ -175,7 +174,7 @@ static bool encode_IR_DYN_header(rohc_comp_context_t *const ctx, rohc_buf_t *con
 
     assert(crc != NULL);
 
-    if (udp_ipv4_code_dynamic(&ctx->udp_ip_ctx, IR_dyn_hdr))
+    if (!udp_ipv4_code_dynamic(&ctx->udp_ip_ctx, IR_dyn_hdr))
     {
         ROHC_LOG_ERROR( "encode dynamic chain fail\n");
         assert(0);
@@ -226,7 +225,7 @@ static bool code_UOR2_header(rohc_comp_context_t *const ctx, rohc_buf_t *const u
     x_crc &= 0x7F;
     rohc_buf_append_byte(uor_2_hdr, x_crc);
 
-    return udp_ipv4_code_dynamic(&ctx->udp_ip_ctx, uor_2_hdr);
+    return udp_ipv4_code_UO_x_random_fields(&ctx->udp_ip_ctx, uor_2_hdr);
 }
 
 /*
@@ -261,7 +260,7 @@ static bool encode_UO0_header(rohc_comp_context_t *const ctx, rohc_buf_t * const
         assert(0);
     }
 
-    return udp_ipv4_code_dynamic(&ctx->udp_ip_ctx, uo_0_hdr);
+    return udp_ipv4_code_UO_x_random_fields(&ctx->udp_ip_ctx, uo_0_hdr);
 
 }
 
@@ -306,7 +305,7 @@ static bool encode_UO1_header(rohc_comp_context_t *const ctx, rohc_buf_t *const 
 
     rohc_buf_append_byte(uo_1_hdr, sn_crc);
 
-    return udp_ipv4_code_dynamic(&ctx->udp_ip_ctx, uo_1_hdr);
+    return udp_ipv4_code_UO_x_random_fields(&ctx->udp_ip_ctx, uo_1_hdr);
 }
 
 extern bool encode_rohc_packet_header(rohc_comp_context_t *const ctx, rohc_buf_t *const header_buf)
@@ -394,7 +393,7 @@ extern void rohc_comp_context_init(rohc_comp_context_t *const ctx,
     ctx->in_use = true;
     ctx->last_use_time = 0;
 
-    ROHC_LOG_INFO( "%s, cid %d Done\n", cid);
+    ROHC_LOG_INFO( "%s, cid %d Done\n", __FUNCTION__, cid);
 }
 
 extern void rohc_comp_context_deinit(rohc_comp_context_t *const ctx)
@@ -403,7 +402,7 @@ extern void rohc_comp_context_deinit(rohc_comp_context_t *const ctx)
 
     udp_ipv4_deinit_context(&ctx->udp_ip_ctx);
 
-    ROHC_LOG_INFO("%s, cid %d Done\n", ctx->cid);
+    ROHC_LOG_INFO("%s, cid %d Done\n", __FUNCTION__, ctx->cid);
 }
 
 extern bool rohc_comp_get_last_packet_info(const rohc_comp_context_t *const ctx,

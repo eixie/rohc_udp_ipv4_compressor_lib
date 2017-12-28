@@ -54,6 +54,12 @@ static inline uint32_t rohc_buf_free_size(const rohc_buf_t buf)
     return (buf.tot_size - buf.len);
 }
 
+static inline uint32_t rohc_buf_get_data_size(const rohc_buf_t buf)
+{
+    assert(rohc_buf_valid(buf));
+    return buf.len;
+}
+
 static inline uint8_t rohc_buf_get_value(const rohc_buf_t buf, const uint32_t index)
 {
     assert(rohc_buf_valid(buf));

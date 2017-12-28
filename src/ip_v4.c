@@ -5,6 +5,7 @@
 
 #include "rohc_utils.h"
 #include "ip_v4.h"
+#include "rohc_log.h"
 
 extern uint16_t ip_v4_calc_checksum(const uint16_t *data, uint32_t length)
 {
@@ -33,6 +34,7 @@ extern uint16_t ip_v4_calc_checksum(const uint16_t *data, uint32_t length)
         checksum = (uint16_t)(~sum);
     }
 
+    //ROHC_LOG_TRACE("check sum 0x%04x\n", checksum);
     return checksum;
 }
 

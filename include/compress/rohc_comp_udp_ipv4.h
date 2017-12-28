@@ -10,6 +10,7 @@
 #include "rohc_buf.h"
 
 #define UDP_IP_COMPRESS_MAX_SN (0xFFFFU)
+#define UDP_IP_DYNAMIC_NO_CHANGE_STABLE_THREASHOLD (4)
 
 typedef enum
 {
@@ -29,6 +30,7 @@ typedef struct
     bool df;
     bool rnd;
     bool nbo;
+    bool sid;
     uint8_t tos;
     uint8_t ttl;
     uint16_t SN;
@@ -50,22 +52,24 @@ typedef struct
 
 typedef struct
 {
-    size_t c_tos;
-    size_t c_ttl;
-    size_t c_df;
-    size_t c_rnd;
-    size_t c_nbo;
-    size_t c_udp_csum;
+    uint32_t c_sid;
+    uint32_t c_tos;
+    uint32_t c_ttl;
+    uint32_t c_df;
+    uint32_t c_rnd;
+    uint32_t c_nbo;
+    uint32_t c_udp_csum;
 }context_remain_no_change_counter_t;
 
 typedef struct
 {
-    size_t stable_cnt_tos;
-    size_t stable_cnt_ttl;
-    size_t stable_cnt_df;
-    size_t stable_cnt_rnd;
-    size_t stable_cnt_nbo;
-    size_t stable_cnt_udp_csum;
+    uint32_t stable_cnt_sid;
+    uint32_t stable_cnt_tos;
+    uint32_t stable_cnt_ttl;
+    uint32_t stable_cnt_df;
+    uint32_t stable_cnt_rnd;
+    uint32_t stable_cnt_nbo;
+    uint32_t stable_cnt_udp_csum;
 }context_stable_threshold_t;
 
 typedef struct

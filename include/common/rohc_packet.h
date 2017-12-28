@@ -1,5 +1,5 @@
-#ifndef ALP_ROHC_PACKETS_H
-#define ALP_ROHC_PACKETS_H
+#ifndef ROHC_COMP_PACKETS_H
+#define ROHC_COMP_PACKETS_H
 
 #ifdef __cplusplus
 extern "C"
@@ -34,22 +34,30 @@ enum
     ROHC_IR_UO_0_PREAMBLE_CODE  = 0x00, //0x0 sn[6:3] crc[2:0]
 };
 
-#ifdef ALP_ROHC_DLL_EXPORT
-#define ALP_ROHC_EXPORT __declspec(dllexport)
-#else
-#define ALP_ROHC_EXPORT
-#endif
+static inline const char * rohc_get_packet_type_str(const rohc_packet_t packet_type)
+{
+	switch(packet_type)
+    {
+    case ROHC_PACKET_IR:
+        return "IR";
+    case ROHC_PACKET_IR_DYN:
+        return "IR-DYN";
+    case ROHC_PACKET_UO_0:
+        return "UO-0";
+    case ROHC_PACKET_UO_1:
+        return "UO-1";
+    case ROHC_PACKET_UOR_2:
+        return "UOR-2";
+    default:
+        return "unknown ROHC packet";
+    }
 
-const char* ALP_ROHC_EXPORT alp_rohc_get_packet_descr(const rohc_packet_t packet_type);
-
-rohc_packet_t ALP_ROHC_EXPORT alp_rohc_get_packet_type(const char *const packet_id);
-
-
-#undef ALP_ROHC_EXPORT
+    return "unknown ROHC packet";
+}
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* ALP_ROHC_PACKETS_H */
+#endif /* ROHC_COMP_PACKETS_H */
 

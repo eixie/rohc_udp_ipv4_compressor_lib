@@ -140,7 +140,7 @@ static rohc_comp_context_t* find_comp_context(rohc_compressor_t *const comp,
             }
             else
             {
-                if (oldest_used_time > mm->ctx_array[i].last_use_time)
+                if (oldest_used_time < mm->ctx_array[i].last_use_time)
                 {
                     oldest_used_time = mm->ctx_array[i].last_use_time;
                     oldest_used_idx = i;
@@ -176,6 +176,7 @@ static rohc_comp_context_t* find_comp_context(rohc_compressor_t *const comp,
         }
 
         ctx = &mm->ctx_array[idx];
+        mm->ctx_array[idx].last_use_time = current_time_clock;
         rohc_comp_context_init(ctx, cid, &comp->cfg);
     }
 

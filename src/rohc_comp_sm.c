@@ -7,12 +7,26 @@
 #include "rohc_utils.h"
 #include "rohc_packet.h"
 
+static const char* rohc_sm_state_str(const rohc_comp_sm_state_t state)
+{
+    switch (state)
+    {
+    case ROHC_COMP_STATE_IR: return "SM_IR";
+    case ROHC_COMP_STATE_FO: return "SM_FO";
+    case ROHC_COMP_STATE_SO: return "SM_SO";
+    default: break;
+    }
+
+    return "SM_UNKNOWN";
+}
+
 static inline void rohc_sm_change_state(rohc_comp_state_machine_t *const sm,
                                         const rohc_comp_sm_state_t new_state)
 {
     if (new_state != sm->state)
     {
-        ROHC_LOG_DEBUG("cid %u: change: %d to state %d", sm->cid, sm->state, new_state);
+        ROHC_LOG_DEBUG("cid %u: change: %s to state %s\n", sm->cid,
+                       rohc_sm_state_str(sm->state), rohc_sm_state_str(new_state));
 
         sm->ir_cnt = 0;
         sm->fo_cnt = 0;
@@ -117,7 +131,7 @@ extern rohc_packet_t rohc_sm_decide_packet_type(rohc_comp_state_machine_t *const
         assert(0);
     }
 
-    ROHC_LOG_DEBUG("pkt_type '%s' chosen", rohc_get_packet_descr(pkt_type));
+    ROHC_LOG_DEBUG("sm select rohc pkt %s\n", rohc_get_packet_type_str(pkt_type));
 
     return pkt_type;
 }
@@ -134,6 +148,7 @@ extern void rohc_sm_init(rohc_comp_state_machine_t *const sm,
     memset(sm, 0, sizeof(rohc_comp_state_machine_t));
 
     sm->cid = cid;
+    sm->state = ROHC_COMP_STATE_IR;
 
     if((perodic_ir_timeout_cnt == 0) ||
        (perodic_fo_timeout_cnt == 0) ||
