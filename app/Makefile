@@ -6,7 +6,7 @@ CFLAGS  += -Wall -Wextra
 ifndef DEBUG
 CFLAGS	+= -O2
 else
-CFLAGS  += -O0 -g
+CFLAGS  += -O0 -g -Ddebug=true
 endif
  
 INCLUD_DIR = ../include
@@ -17,17 +17,13 @@ LINK_DIR  = -L../src
 SRCS = $(wildcard *.c)
 OBJS = $(SRCS:.c=.o)
 
-default: preprocess rohc_build_app.exe postprocess
-
-preprocess:
-	mv msys-2.0.dll msys-2.0.dll.x
-postprocess:
-	mv msys-2.0.dll.x msys-2.0.dll  
+default:  rohcCompDemo.exe
+ 
 $(OBJS): %.o:%.c
 	$(CC) -c $(CFLAGS) $(INCLUDE)  $< -o $@ 
 
-rohc_build_app.exe: $(OBJS)
-	$(CC) $^ -o $@ $(INCLUDE)  $(LINK_DIR) -lROHCcomp
+rohcCompDemo.exe: $(OBJS)
+	$(CC) $^ -o $@ $(INCLUDE)  $(LINK_DIR) -lUdpIpv4RohcComp -lwsock32
 
 	
 .PHONY: clean 	

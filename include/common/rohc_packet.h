@@ -25,13 +25,14 @@ enum
     UOR_2_SN_BITS   = 5,
 };
 
-enum
+enum packet_type_preamble
 {
-    ROHC_IR_PREAMBLE_CODE       = 0xFC, //0x1111,110D
+    ROHC_IR_PREAMBLE_CODE       = 0xFD, //0x1111,1101
+    ROHC_IR_NO_D_PREAMBLE_CODE  = 0xFC, //0x1111,1100
     ROHC_IR_DYN_PREAMBLE_CODE   = 0xF8, //0x1111,1000
-    ROHC_IR_UOR_2_PREAMBLE_CODE = 0xC0, //0x110 sn[4:0]
-    ROHC_IR_UO_1_PREAMBLE_CODE  = 0x80, //0x10 IP-ID[5:0]
-    ROHC_IR_UO_0_PREAMBLE_CODE  = 0x00, //0x0 sn[6:3] crc[2:0]
+    ROHC_UOR_2_PREAMBLE_CODE    = 0xC0, //0x110 sn[4:0]
+    ROHC_UO_1_PREAMBLE_CODE     = 0x80, //0x10 IP-ID[5:0]
+    ROHC_UO_0_PREAMBLE_CODE     = 0x00, //0x0 sn[6:3] crc[2:0]
 };
 
 static inline const char * rohc_get_packet_type_str(const rohc_packet_t packet_type)

@@ -63,7 +63,41 @@ do                                                                              
 
 #define IS_POW_OF_2(x) ((((x)) & ((x) - 1)) == 0)
 
-extern uint16_t rohc_ntoh16(const uint16_t net16);
+static inline uint16_t rohc_ntoh16(const uint16_t net16)
+{
+#if WORDS_BIGENDIAN == 1
+	return net16;
+#else
+	return ROHC_ENDIAN_SWAP16(net16);
+#endif
+}
+
+static inline uint32_t rohc_ntoh32(const uint32_t net32)
+{
+#if WORDS_BIGENDIAN == 1
+	return net32;
+#else
+	return ROHC_ENDIAN_SWAP32(net32);
+#endif
+
+}
+static inline uint16_t rohc_htno16(const uint16_t host16)
+{
+#if WORDS_BIGENDIAN == 1
+	return host16;
+#else
+	return ROHC_ENDIAN_SWAP16(host16);
+#endif
+}
+
+static inline uint32_t rohc_hton32(const uint32_t host32)
+{
+#if WORDS_BIGENDIAN == 1
+	return host32;
+#else
+	return ROHC_ENDIAN_SWAP32(host32);
+#endif
+}
 
 #define  ROHC_ALIGN_1BYTE  __attribute__((packed))
 #ifdef __cplusplus

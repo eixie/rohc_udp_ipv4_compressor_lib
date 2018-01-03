@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <string.h>
+#include <time.h>
+#include <stdio.h>
 
 #include "rohc_utils.h"
 #include "rohc_buf.h"
@@ -105,6 +107,7 @@ static void udp_ipv4_detect_id_jump_behavior(udp_ipv4_comp_context_t *const ctx)
         }
         else if (!is_random_ipv4_id(old_id, new_id))
         {
+            ROHC_LOG_DEBUG("ip id random case id =%d\n", new_id);
             ctx->cur_d.rnd = false;
             ctx->cur_d.nbo = true;
         }
@@ -129,6 +132,7 @@ static void udp_ipv4_detect_id_jump_behavior(udp_ipv4_comp_context_t *const ctx)
             }
             else
             {
+                ROHC_LOG_DEBUG("ip id random case id =%d\n", rohc_ntoh16(ctx->cur_d.ip_id));
                 ctx->cur_d.rnd = true;
                 ctx->cur_d.nbo = true;
             }
@@ -258,7 +262,7 @@ extern bool udp_ipv4_udpate_context(udp_ipv4_comp_context_t *const ctx,
         ctx->s_part.dst_addr = net_pkt->ip_hdr.dst_addr;
         ctx->s_part.src_port = net_pkt->udp_hdr.src;
         ctx->s_part.dst_port = net_pkt->udp_hdr.dest;
-        ROHC_LOG_DEBUG("set static ctx:0x%02x:%02x:%02x:%02x",
+        ROHC_LOG_DEBUG("set static ctx:0x%02x:%02x:%02x:%02x\n",
                        ctx->s_part.src_addr,
                        ctx->s_part.dst_addr,
                        ctx->s_part.src_port,
@@ -297,8 +301,8 @@ extern bool udp_ipv4_udpate_context(udp_ipv4_comp_context_t *const ctx,
     wlsb_add_ref_to_window(ctx->ip_id_enc.wlsb,
                            ctx->ip_id_enc.orig_value);
 
-    ROHC_LOG_TRACE("update context SN %d, klsb %d bits, ip_id %d, ofst klsb %d bits\n",
-                   ctx->cur_d.SN, ctx->sn_enc.max_k_lsb,
+    ROHC_LOG_DEBUG("update context SN %d(0x%04x), klsb %d bits, ip_id %d, ofst klsb %d bits\n",
+                   ctx->cur_d.SN, ctx->cur_d.SN, ctx->sn_enc.max_k_lsb,
                    rohc_ntoh16(ctx->cur_d.ip_id), ctx->ip_id_enc.max_k_lsb);
 
     return true;
@@ -374,6 +378,12 @@ extern  bool udp_ipv4_code_static(const udp_ipv4_comp_context_t *const ctx,
     memcpy(&buf[6],  &ctx->s_part.dst_addr, 4);
     memcpy(&buf[10], &ctx->s_part.src_port, 2);
     memcpy(&buf[12], &ctx->s_part.dst_port, 2);
+
+    ROHC_LOG_TRACE("dump static chain(14B): 0x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+                   buf[0], buf[1], buf[2], buf[3], buf[4],
+                   buf[5], buf[6], buf[7], buf[8], buf[9],
+                   buf[10], buf[11], buf[12], buf[13]);
+
     rohc_buf_append(static_chain_buf, buf, UDP_IP_STATIC_CHAIN_LENGTH);
 
     return true;
@@ -401,6 +411,7 @@ extern bool udp_ipv4_code_dynamic(const udp_ipv4_comp_context_t *const ctx,
 #define UDP_IP_DYNAMIC_CHAIN_LENGTH  9U
 
     const udp_ipv4_dynamic_part_t *dyn;
+    uint16_t sn_nbo;
     uint8_t buf[UDP_IP_DYNAMIC_CHAIN_LENGTH];
     uint8_t df_rnd_nbo_byte = 0x0;
     uint16_t ip_id;
@@ -446,9 +457,15 @@ extern bool udp_ipv4_code_dynamic(const udp_ipv4_comp_context_t *const ctx,
     }
 
     buf[4] = df_rnd_nbo_byte;
+    sn_nbo = rohc_htno16(ctx->cur_d.SN);
 
     memcpy(&buf[5], &ctx->cur_d.udp_csum, 2);
-    memcpy(&buf[7], &ctx->cur_d.SN, 2);
+    memcpy(&buf[7], &sn_nbo, 2);
+
+    ROHC_LOG_TRACE("dump dyn chain(9B): 0x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+                   buf[0], buf[1], buf[2],
+                   buf[3], buf[4], buf[5],
+                   buf[6], buf[7], buf[8]);
 
     rohc_buf_append(dyn_chain_buf, buf, UDP_IP_DYNAMIC_CHAIN_LENGTH);
 
@@ -476,12 +493,11 @@ extern bool udp_ipv4_code_UO_x_random_fields(const udp_ipv4_comp_context_t *cons
     if (ctx->cur_d.udp_csum != 0)
     {
         ROHC_LOG_DEBUG("set UDP checksum = 0x%04x\n", ctx->cur_d.udp_csum);
-        memcpy(&buf + k, (uint8_t *)(&ctx->cur_d.udp_csum), 2);
+        memcpy(buf + k, (uint8_t *)(&ctx->cur_d.udp_csum), 2);
         k += 2;
     }
 
     rohc_buf_append(uo_x_hdr, buf, k);
-
     return true;
 }
 
@@ -525,7 +541,7 @@ extern rohc_packet_t udp_ipv4_comp_decide_so_packet(const void *const udp_ip_ctx
     {
         pkt_type = ROHC_PACKET_IR_DYN;
     }
-    else if ((ctx->ip_id_enc.max_k_lsb != 0) && (!ctx->cur_d.sid))
+    else if ((ctx->ip_id_enc.max_k_lsb != 0) && (!ctx->cur_d.sid) && (!ctx->cur_d.rnd))
     {
         if ((ctx->ip_id_enc.max_k_lsb <= UO_1_IP_ID_BITS) && (ctx->sn_enc.max_k_lsb <= UO_1_SN_BITS))
         {
@@ -568,6 +584,10 @@ extern void udp_ipv4_init_context(udp_ipv4_comp_context_t *const ctx,
     memset(ctx, 0, sizeof(udp_ipv4_comp_context_t));
 
     ctx->first_packet = true;
+
+    srand((unsigned int)time(NULL));
+    ctx->cur_d.SN = (uint16_t)rand();
+    ROHC_LOG_INFO("init context SN to be %d\n", ctx->cur_d.SN);
 
     ctx->thresh.stable_cnt_tos = UDP_IP_DYNAMIC_NO_CHANGE_STABLE_THREASHOLD;
     ctx->thresh.stable_cnt_ttl = UDP_IP_DYNAMIC_NO_CHANGE_STABLE_THREASHOLD;
@@ -654,11 +674,11 @@ extern uint16_t udp_ipv4_get_IP_ID_minus_SN(const udp_ipv4_comp_context_t *const
 {
     assert(ctx != NULL);
 
-    return (ctx->cur_d.ip_id - ctx->cur_d.SN);
+    return (rohc_ntoh16(ctx->cur_d.ip_id) - ctx->cur_d.SN);
 }
 
 extern uint16_t udp_ipv4_get_IP_ID(const udp_ipv4_comp_context_t *const ctx)
 {
     assert(ctx != NULL);
-    return ctx->cur_d.ip_id;
+    return rohc_ntoh16(ctx->cur_d.ip_id);
 }

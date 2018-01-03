@@ -1,31 +1,30 @@
 CC = gcc
 
 #DEBUG = 1
-CFLAGS  += -fPIC -Wall -Wextra 
+CFLAGS  +=  -Wall -Wextra 
 
 ifndef DEBUG
 CFLAGS	+= -O2
 else
-CFLAGS  += -O0 -g
+CFLAGS  += -O0 -g -Ddebug=true
 endif
 
 INCLUD_DIR = ../include
 INCLUDE += -I$(INCLUD_DIR)/common -I$(INCLUD_DIR)/compress -I$(INCLUD_DIR)/protocol
 
-LDSHFLAGS += ${CFLAGS} -shared -Wl,-Bsymbolic -Wl,-rpath
+LDSHFLAGS += ${CFLAGS} -shared -fPIC
 
 SRCS = $(wildcard *.c)
 OBJS = $(SRCS:.c=.o)
 
-default: libROHCcomp.dll
+default: libUdpIpv4RohcComp.dll
 
 $(OBJS): %.o:%.c
 	$(CC) -c $(CFLAGS) $(INCLUDE) $< -o $@ 
 
-libROHCcomp.dll: $(OBJS)
+libUdpIpv4RohcComp.dll: $(OBJS)
 	$(CC) $^ -o $@ $(LDSHFLAGS) 
 	cp $@ -r ../app/
-
 	
 .PHONY: clean 	
 

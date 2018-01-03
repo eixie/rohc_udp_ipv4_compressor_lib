@@ -13,9 +13,10 @@ typedef struct network_packet
     uint32_t       ip_len;   /* ip header + ip payload length*/
 
     const uint8_t  *udp_data; /* payload of udp*/
-    uint32_t       udp_payload_len;
     uint32_t       udp_len;   /* udp header + udp payload length */
 
+    const uint8_t *payload;
+    uint32_t       payload_len;
 
     ipv4_header_t  ip_hdr;
     udp_header_t   udp_hdr;

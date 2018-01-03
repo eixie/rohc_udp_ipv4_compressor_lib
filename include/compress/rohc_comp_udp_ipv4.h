@@ -33,21 +33,21 @@ typedef struct
     bool sid;
     uint8_t tos;
     uint8_t ttl;
-    uint16_t SN;
-    uint16_t ip_id;
-    uint16_t udp_csum;
-    uint16_t ip_csum;
-    uint16_t frag_info;
-    uint16_t ip_len;
-    uint16_t udp_len;
+    uint16_t SN;        // host order, sent in NBO
+    uint16_t ip_id;     // network order copied from ip hdr
+    uint16_t udp_csum;  // network order copied from udp hdr
+    uint16_t ip_csum;   // network order copied from ip hdr
+    uint16_t frag_info; // network order copied from ip hdr
+    uint16_t ip_len;    // network order copied from ip hdr
+    uint16_t udp_len;   // network order copied from udp hdr
 }udp_ipv4_dynamic_part_t;
 
 typedef struct
 {
-    uint32_t src_addr;
-    uint32_t dst_addr;
-    uint16_t src_port;
-    uint16_t dst_port;
+    uint32_t src_addr;  //network byte order
+    uint32_t dst_addr;  //network byte order
+    uint16_t src_port;  //network byte order
+    uint16_t dst_port;  //network byte order
 }udp_ipv4_static_part_t;
 
 typedef struct

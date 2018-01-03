@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#if 1//__LINUX__
+#if 0 
 #include <arpa/inet.h>
 #else
 #include <winsock2.h>
@@ -102,20 +102,20 @@ static uint8_t g_rohc_buffer[ROHC_PACKET_SIZE_MAX];
 #define PCAP_PACKET_MAX_SIZE (64*1024 + 128)
 unsigned char g_pcap_buffer[PCAP_PACKET_MAX_SIZE];
 
-static void run_alp_build(uint32_t total_pkt_cnt)
+static void run_rohc_build(uint32_t total_pkt_cnt)
 {
-    const char *src_addr_str = "172.26.150.77";
-    const char *dst_addr_str = "172.26.150.57";
+    const char *src_addr_str = "192.168.1.77";
+    const char *dst_addr_str = "192.168.0.0";
 
     const uint32_t src_addr = (uint32_t)inet_addr(src_addr_str); //big endian
     const uint32_t dst_addr = (uint32_t)inet_addr(dst_addr_str); //big endian
-    const uint16_t src_port = 51040;
-    const uint16_t dst_port = 5003;
+    const uint16_t src_port = 64150;
+    const uint16_t dst_port = 1250;
 
-    FILE *fp_udp_ip_dump = fopen("udp_ip_packet.bin", "w");
-    FILE *fp_rohc_dump   = fopen("rohc_packet.bin", "w");
+    FILE *fp_udp_ip_dump = fopen("udp_ip_packet.bin", "wb");
+    FILE *fp_rohc_dump   = fopen("rohc_packet.bin", "wb");
     FILE *fp_rohc_pkt_len_dump = fopen("rohc_packet_len_rec.bin", "w");
-    FILE *fp_pcap_dump   = fopen("udp_ip_pcap_packet.pcap", "w");
+    FILE *fp_pcap_dump   = fopen("udp_ip_pcap_packet.pcap", "wb");
 
     uint32_t i = 0;
     bool   first_packet = true;
@@ -134,8 +134,12 @@ static void run_alp_build(uint32_t total_pkt_cnt)
 
     for (i = 0; i < total_pkt_cnt; ++i)
     {
-        uint16_t payload_len = gen_udp_ipv4_payload(g_payload_buffer, 100, 100, false, false);
+        uint16_t payload_len;
         uint16_t ip_tot_len;
+
+        memset(g_payload_buffer, 0, IP_PACKET_PAYLOAD_MAX);
+
+        payload_len = gen_udp_ipv4_payload(g_payload_buffer, 1, 1200, false, true);
 
         if ((uint32_t)payload_len + 28 >= IP_PACKET_MAX_LEN)
         {
@@ -144,18 +148,19 @@ static void run_alp_build(uint32_t total_pkt_cnt)
 
         ip_tot_len = payload_len + 28;
 
-
         rohc_buf_clear(&rohc_pkt);
 
-
         build_udp_ip_headers(g_ip_buffer, g_payload_buffer, payload_len,
-                             src_addr, dst_addr, src_port, dst_port, id);
+                             src_addr, dst_addr, src_port, dst_port, id++);
 
-        //id += rand()%2 + 1;
-        ++id;
 
         ROHC_LOG_DEBUG("ip packet[%d] len - %d\n", (i+1), ip_tot_len);
+
+        //id = rand()%65321;
+
         fwrite(g_ip_buffer, ip_tot_len, 1, fp_udp_ip_dump);
+        fflush(fp_udp_ip_dump);
+
         ip_pkt = rohc_buf_init(g_ip_buffer, ip_tot_len, false);
 
         tot_pcap_pkt_size = 0;
@@ -187,18 +192,40 @@ static void run_alp_build(uint32_t total_pkt_cnt)
         }
 
         ROHC_LOG_DEBUG("last rohc pkt info: "
-                       "SN%d, ip_id %d, pktType %d, cid %d, cid type%d, static size %d, dyn size%d\n",
+                       "SN (%d), ip_id %d, pktType %d, cid %d, cid type%d, static size %d, dyn size%d\n",
                        rohc_info.SN,
-                       ROHC_ENDIAN_SWAP16(rohc_info.ip_id),
+                       rohc_info.ip_id,
                        rohc_info.packet_type,
                        rohc_info.cid,
                        rohc_info.cid_type,
                        rohc_info.dynamic_context_size,
                        rohc_info.static_context_size);
+#if 0
+        if (rohc_pkt.len > 8)
+        {
+            ROHC_LOG_TRACE("dump 8 bytes: 0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+                           rohc_buf_get_value(rohc_pkt, 0),
+                           rohc_buf_get_value(rohc_pkt, 1),
+                           rohc_buf_get_value(rohc_pkt, 2),
+                           rohc_buf_get_value(rohc_pkt, 3),
+                           rohc_buf_get_value(rohc_pkt, 4),
+                           rohc_buf_get_value(rohc_pkt, 5),
+                           rohc_buf_get_value(rohc_pkt, 6),
+                           rohc_buf_get_value(rohc_pkt, 7));
+        }
+#endif
 
+#if 0
+        if ((i > 10) && (i < 80))
+        {
+            ROHC_LOG_INFO("simulate packet loss, drop packet[%d]\n", i);
+            continue;
+        }
+#endif
         snprintf(rohc_pkt_len_str, 7, "%d\n", (uint32_t)rohc_pkt.len);
         fwrite(rohc_pkt_len_str, strlen(rohc_pkt_len_str), 1, fp_rohc_pkt_len_dump);
         fwrite(rohc_buf_get_pointer(rohc_pkt, 0), rohc_pkt.len, 1, fp_rohc_dump);
+
     }
 
     rohc_release_compressor(comp_idx);
@@ -216,7 +243,7 @@ static void run_alp_build(uint32_t total_pkt_cnt)
 
 int main(int argc, char *argv[])
 {
-    uint32_t total_pkt_cnt = 1200; //default 10000 packet
+    uint32_t total_pkt_cnt = 100; //default 100 packet
 
     if (argc >= 2)
     {
@@ -225,5 +252,5 @@ int main(int argc, char *argv[])
 
     ROHC_LOG_INFO("start build %d random udp_ip packet/pcap and rohc pkt", total_pkt_cnt);
 
-    run_alp_build(total_pkt_cnt);
+    run_rohc_build(total_pkt_cnt);
 }

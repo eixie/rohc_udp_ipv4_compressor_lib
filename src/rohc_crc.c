@@ -41,6 +41,7 @@ static void crc_init_table(uint8_t *const table, const rohc_crc_type_t crc_type)
     case ROHC_CRC_TYPE_UNKONWN:
     default:
         assert(0);
+        return;
     }
 
 	for(i = 0; i < 256; i++)

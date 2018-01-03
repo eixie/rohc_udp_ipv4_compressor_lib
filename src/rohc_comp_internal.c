@@ -278,6 +278,7 @@ static bool encode_UO1_header(rohc_comp_context_t *const ctx, rohc_buf_t *const 
     uint8_t f_octect = 0;
     uint8_t sn_crc;
     uint8_t ip_id_ofst;
+    uint8_t sn_low;
 
     ROHC_NULL_PTR_CHECK_RET(ctx, false);
     ROHC_NULL_PTR_CHECK_RET(uo_1_hdr, false);
@@ -301,8 +302,9 @@ static bool encode_UO1_header(rohc_comp_context_t *const ctx, rohc_buf_t *const 
                                          ROHC_CRC_TYPE_3,
                                          CRC_3_INIT_VAL);
 
-    sn_crc = (uint8_t)((udp_ipv4_get_SN(&ctx->udp_ip_ctx) & 0x1f) << 3) | (sn_crc & 0x07);
-
+    sn_low = (uint8_t)(udp_ipv4_get_SN(&ctx->udp_ip_ctx));
+    sn_crc = ((sn_low & 0x1f) << 3) | (sn_crc & 0x07);
+    ROHC_LOG_DEBUG("uo_1 sn_low 0x%02x, sn_crc 0x%02x\n", sn_low, sn_crc);
     rohc_buf_append_byte(uo_1_hdr, sn_crc);
 
     return udp_ipv4_code_UO_x_random_fields(&ctx->udp_ip_ctx, uo_1_hdr);
@@ -343,9 +345,9 @@ extern rohc_status_t rohc_comp_internal(rohc_comp_context_t *const ctx,
 {
     ROHC_NULL_PTR_CHECK_RET(ctx, ROHC_STATUS_ERROR);
     ROHC_NULL_PTR_CHECK_RET(net_pkt, ROHC_STATUS_ERROR);
-    ROHC_NULL_PTR_CHECK_RET(net_pkt->udp_data, ROHC_STATUS_ERROR);
+    ROHC_NULL_PTR_CHECK_RET(net_pkt->payload, ROHC_STATUS_ERROR);
 
-    if (!rohc_buf_size_check(*comp_pkt, (MAXIMUM_ROHC_HEADER_SIZE + net_pkt->udp_payload_len)))
+    if (!rohc_buf_size_check(*comp_pkt, (MAXIMUM_ROHC_HEADER_SIZE + net_pkt->payload_len)))
     {
         return ROHC_STATUS_OUTPUT_TOO_SMALL;
     }
@@ -368,7 +370,7 @@ extern rohc_status_t rohc_comp_internal(rohc_comp_context_t *const ctx,
 
     rohc_buf_clear(comp_pkt);
     encode_rohc_packet_header(ctx, comp_pkt);
-    if (!rohc_buf_append(comp_pkt, net_pkt->udp_data, net_pkt->udp_payload_len))
+    if (!rohc_buf_append(comp_pkt, net_pkt->payload, net_pkt->payload_len))
     {
         ROHC_LOG_ERROR( "%s append payload after rohc header fail\n", __FUNCTION__);
         return ROHC_STATUS_MALFORMED;

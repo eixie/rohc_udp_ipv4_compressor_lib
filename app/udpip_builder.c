@@ -5,36 +5,49 @@
 #include <assert.h>
 #include <string.h>
 
+#if 0
+#include <arpa/inet.h>
+#else
+#include <winsock2.h>
+#endif
+
 #include "ip_v4.h"
 #include "udp.h"
 #include "rohc_log.h"
 #include "rohc_utils.h"
 
+
+#pragma pack(1)
 typedef struct
 {
     uint32_t src_addr;
     uint32_t dst_addr;
     uint16_t proto;
     uint16_t len;
-} __attribute__((packed)) udp_dummy_header_t;
+}udp_dummy_header_t;
+#pragma pack()
 
+#pragma pack(1)
 typedef struct
 {
     udp_dummy_header_t dummy;
     udp_header_t real;
 
-}__attribute__((packed)) udp_full_header_t;
-
+}udp_full_header_t;
+#pragma pack()
 
 static uint16_t calc_checksum(const uint16_t *data, uint32_t length)
 {
     uint16_t csum = 0;
     uint32_t sum = 0;
 
+    //ROHC_LOG_DEBUG("checksum len %d\n", length);
+
     if (data != NULL)
     {
         while (length > 1)
         {
+            //ROHC_LOG_TRACE("0x%04x\n", ROHC_ENDIAN_SWAP16(*data));
             sum += (*data);
             ++data;
             length -= sizeof(uint16_t);
@@ -42,6 +55,7 @@ static uint16_t calc_checksum(const uint16_t *data, uint32_t length)
 
         if (length == 1)
         {
+            //ROHC_LOG_TRACE("last ----- 0x%02x\n", *(uint8_t *)data);
             sum += *(uint8_t *)data;
         }
 
@@ -52,6 +66,8 @@ static uint16_t calc_checksum(const uint16_t *data, uint32_t length)
 
         csum = (uint16_t)(~sum);
     }
+
+    //ROHC_LOG_DEBUG("checksum 0x%04x\n", csum);
 
     return csum;
 }
@@ -83,8 +99,8 @@ static bool udp_create_header(uint8_t *const udp_header_start,
                               const uint16_t udp_tot_len,
                               const uint32_t src_addr,
                               const uint32_t dst_addr,
-                              const uint32_t src_port,
-                              const uint32_t dst_port)
+                              const uint16_t src_port,
+                              const uint16_t dst_port)
 {
     udp_full_header_t header;
 
@@ -109,10 +125,10 @@ static bool udp_create_header(uint8_t *const udp_header_start,
 }
 
 static ipv4_header_t build_ipv4_header(const uint16_t ip_tot_len,
-                                            const uint32_t src_addr,
-                                            const uint32_t dst_addr,
-                                            const uint8_t  prot,
-                                            const uint16_t id)
+                                       const uint32_t src_addr,
+                                       const uint32_t dst_addr,
+                                       const uint8_t  prot,
+                                       const uint16_t id)
 {
     ipv4_header_t hdr;
 
@@ -129,7 +145,7 @@ static ipv4_header_t build_ipv4_header(const uint16_t ip_tot_len,
 
     hdr.csum = calc_checksum((const uint16_t *)(&hdr), sizeof(ipv4_header_t));
 
-    ROHC_LOG_DEBUG("Ip hdr: Len %d, id %d csum0x%08x, SrcIpAddr 0x%08x, DstIpAddr 0x%x\n",
+    ROHC_LOG_DEBUG("Ip hdr: Len %d, id %d csum0x%04x, Src(0x%08x), Dst(0x%08x)\n",
                   ip_tot_len, id, hdr.csum, hdr.src_addr, hdr.dst_addr);
 
     return hdr;
@@ -162,8 +178,8 @@ extern bool build_udp_ip_headers(uint8_t *const pkt_buf_start,
                                  const uint16_t payload_len,
                                  const uint32_t src_addr,
                                  const uint32_t dst_addr,
-                                 const uint32_t src_port,
-                                 const uint32_t dst_port,
+                                 const uint16_t src_port,
+                                 const uint16_t dst_port,
                                  const uint16_t id)
 {
     bool create = false;
@@ -172,9 +188,7 @@ extern bool build_udp_ip_headers(uint8_t *const pkt_buf_start,
     uint16_t udp_tot_len = payload_len + sizeof(udp_header_t);
     uint16_t ip_tot_len  = payload_len + tot_hdr_len;
 
-    uint16_t udp_dummpy_ofst_from_ip_start =
-        sizeof(ipv4_header_t) - sizeof(udp_dummy_header_t);
-
+    uint16_t udp_dummpy_ofst_from_ip_start = sizeof(ipv4_header_t) - sizeof(udp_dummy_header_t);
 
     assert(pkt_buf_start != NULL);
     assert(data != NULL);
@@ -205,6 +219,5 @@ extern bool build_udp_ip_headers(uint8_t *const pkt_buf_start,
         ROHC_LOG_ERROR("%s, ipv4_create_header fail\n", __FUNCTION__);
         return false;
     }
-
     return true;
 }

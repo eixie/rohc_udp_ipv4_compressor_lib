@@ -80,7 +80,7 @@ static inline uint8_t* rohc_buf_get_pointer(const rohc_buf_t buf, const uint32_t
     {
         return &buf.data[index + buf.offset];
     }
-
+    assert(0);
     return NULL;
 }
 
@@ -138,8 +138,8 @@ static inline bool rohc_buf_prepend(rohc_buf_t *const buf,
 }
 
 static inline bool rohc_buf_append(rohc_buf_t *const buf,
-                            const uint8_t *const data,
-                            const uint32_t size)
+                                   const uint8_t *const data,
+                                   const uint32_t size)
 {
     if ((buf != NULL) && (data != NULL) && (rohc_buf_free_size(*buf) >= size))
     {

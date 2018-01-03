@@ -70,7 +70,9 @@ extern bool parse_net_packet(network_packet_t *const net_pkt,
     //check udp
     net_pkt->udp_data = data + sizeof(ipv4_header_t);
     net_pkt->udp_len  = len - sizeof(ipv4_header_t);
-    net_pkt->udp_payload_len = net_pkt->udp_len  - 8;
+
+    net_pkt->payload_len = net_pkt->udp_len  - sizeof(udp_header_t);
+    net_pkt->payload     = net_pkt->udp_data + sizeof(udp_header_t);
 
     memcpy(&net_pkt->udp_hdr, net_pkt->udp_data, sizeof(udp_header_t));
 
