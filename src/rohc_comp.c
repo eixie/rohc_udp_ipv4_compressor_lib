@@ -135,11 +135,12 @@ static rohc_comp_context_t* find_comp_context(rohc_compressor_t *const comp,
                 ctx = &mm->ctx_array[i];
                 mm->ctx_array[i].last_use_time = current_time_clock;
 
-                ROHC_LOG_INFO("found match ctx context [%d] for CID[%d]\n", i, ctx->cid);
+                ROHC_LOG_DEBUG("found match ctx context [%d] for CID[%d]\n", i, ctx->cid);
                 break;
             }
             else
             {
+                ROHC_LOG_DEBUG("ctx[%d] in use\n", i);
                 if (oldest_used_time < mm->ctx_array[i].last_use_time)
                 {
                     oldest_used_time = mm->ctx_array[i].last_use_time;
@@ -149,6 +150,7 @@ static rohc_comp_context_t* find_comp_context(rohc_compressor_t *const comp,
         }
         else if (free_idx == INVALID_COMP_CTX_INDEX)
         {
+            ROHC_LOG_DEBUG("free ctx[%d]\n", i);
             free_idx = i;
         }
     }
@@ -158,7 +160,7 @@ static rohc_comp_context_t* find_comp_context(rohc_compressor_t *const comp,
         uint16_t  idx;
         uint8_t cid;
 
-        if ((free_idx != INVALID_COMP_CTX_INDEX) && (comp->next_avail_cid < comp->cfg.max_cid))
+        if ((free_idx != INVALID_COMP_CTX_INDEX) && (comp->next_avail_cid <= comp->cfg.max_cid))
         {
             cid = comp->next_avail_cid++;
             idx = free_idx;

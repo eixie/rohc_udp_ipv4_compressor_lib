@@ -4,9 +4,9 @@ CC = gcc
 CFLAGS  += -Wall -Wextra 
 
 ifndef DEBUG
-CFLAGS	+= -O2
+CFLAGS	+= -O2 
 else
-CFLAGS  += -O0 -g -Ddebug=true
+CFLAGS  += -O0 -g -DDEBUG=true
 endif
  
 INCLUD_DIR = ../include
@@ -17,13 +17,13 @@ LINK_DIR  = -L../src
 SRCS = $(wildcard *.c)
 OBJS = $(SRCS:.c=.o)
 
-default:  rohcCompDemo.exe
- 
+default: rohcCompDemo.exe 
+
 $(OBJS): %.o:%.c
 	$(CC) -c $(CFLAGS) $(INCLUDE)  $< -o $@ 
 
 rohcCompDemo.exe: $(OBJS)
-	$(CC) $^ -o $@ $(INCLUDE)  $(LINK_DIR) -lUdpIpv4RohcComp -lwsock32
+	$(CC) $^ -o $@ $(INCLUDE)  $(LINK_DIR) -ludpIpROHCComp -lwsock32
 
 	
 .PHONY: clean 	

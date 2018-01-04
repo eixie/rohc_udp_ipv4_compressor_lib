@@ -29,8 +29,8 @@ extern "C"
 #define _LOG_TRACE(format, ...)  fprintf(stdout, format, ##__VA_ARGS__)
 #define _LOG_DEBUG(format, ...)  fprintf(stdout, format, ##__VA_ARGS__)
 #define _LOG_INFO(format, ...)   fprintf(stdout, format, ##__VA_ARGS__)
-#define _LOG_WARN(format, ...)   fprintf(stderr, format, ##__VA_ARGS__)
-#define _LOG_ERROR(format, ...)  fprintf(stderr, format, ##__VA_ARGS__)
+#define _LOG_WARN(format, ...)   fprintf(stdout, format, ##__VA_ARGS__)
+#define _LOG_ERROR(format, ...)  fprintf(stdout, format, ##__VA_ARGS__)
 #endif /* ROHC_USE_EXTERNAL_ZLOG */
 
 
@@ -50,7 +50,7 @@ extern "C"
 #define ROHC_LOG_DEINIT()            _LOG_DEINIT()
 
 
-#if 1
+#if DEBUG
 
 #define ROHC_LOG_TRACE(format, ...)  _LOG_TRACE(format, ##__VA_ARGS__)
 #define ROHC_LOG_DEBUG(format, ...)  _LOG_DEBUG(format, ##__VA_ARGS__)
@@ -62,7 +62,7 @@ extern "C"
 
 #define ROHC_LOG_TRACE(format, ...)
 #define ROHC_LOG_DEBUG(format, ...)
-#define ROHC_LOG_INFO(format, ...)
+#define ROHC_LOG_INFO(format, ...)   _LOG_INFO(format, ##__VA_ARGS__)
 #define ROHC_LOG_WARN(format, ...)   _LOG_WARN(format, ##__VA_ARGS__)
 #define ROHC_LOG_ERROR(format, ...)  _LOG_ERROR(format, ##__VA_ARGS__)
 
