@@ -19,17 +19,15 @@
 #include "ip_v4.h"
 #include "udp.h"
 #include "udpip_builder.h"
+#include "rohc_cache_file.h"
 
 #define IP_PACKET_SIZE_MAX    (64 * 1024)
 #define IP_PACKET_PAYLOAD_MAX  (IP_PACKET_SIZE_MAX - 28)
 #define ROHC_PACKET_SIZE_MAX (64 *1024)
 #define PCAP_PACKET_MAX_SIZE (64*1024 + 128)
 
-#define IO_DATA_CACHE_BUF_FULL_SIZE (2 * 1024 * 1024) //2M
-#define IO_DATA_CACHE_BUF_TOTAL_SIZE (IO_DATA_CACHE_BUF_FULL_SIZE + IP_PACKET_SIZE_MAX)
-
-#define IO_LEN_REC_CACHE_BUF_FULL_SIZE (128 * 1024)
-#define IO_LEN_REC_CACHE_BUF_TOTAL_SIZE (IO_LEN_REC_CACHE_BUF_FULL_SIZE + 32)
+#define DATA_CACHE_BUF_SIZE (2 * 1024 * 1024) //2M
+#define LEN_REC_CACHE_BUF_SIZE (128 * 1024)  //128K
 
 typedef enum
 {
@@ -63,148 +61,14 @@ typedef struct
 
 struct rohc_comp_test_context
 {
-    FILE *fp_udp_ip_dump;
-    FILE *fp_rohc_dump;
-    FILE *fp_rohc_pkt_len_dump;
-    FILE *fp_pcap_dump;
+    rohc_cache_file_t *cfp_ip;
+    rohc_cache_file_t *cfp_rohc;
+    rohc_cache_file_t *cfp_rohc_len_rec;
+    rohc_cache_file_t *cfp_pcap;
 
     uint8_t comp_idx;
     udp_ip_stream_cfg_t cfg[1];
 };
-
-typedef enum
-{
-    CACHE_DUMP_IP = 0,
-    CACHE_DUMP_ROHC = 1,
-    CACHE_DUMP_ROHC_LEN = 2,
-    CACHE_DUMP_PCAP = 3,
-    CACHE_DUMP_FLUSH = 4,
-    CACHE_DUMP_INIT = 5,
-}cache_dump_type_t;
-
-static inline void flush_cache_to_file(rohc_buf_t *const cache, FILE *fp)
-{
-    if ((cache != NULL) && (fp != NULL))
-    {
-        if (rohc_buf_get_data_size(*cache) > 0)
-        {
-            fwrite(rohc_buf_get_pointer(*cache, 0), rohc_buf_get_data_size(*cache), 1, fp);
-            fflush(fp);
-            rohc_buf_clear(cache);
-        }
-    }
-}
-
-static void cache_file_write(struct rohc_comp_test_context *ctx,
-                             const cache_dump_type_t cache_type,
-                             const rohc_buf_t *const src_buf)
-{
-    static uint8_t g_ip_cache_buf[IO_DATA_CACHE_BUF_TOTAL_SIZE];
-    static uint8_t g_pcap_cache_buf[IO_DATA_CACHE_BUF_TOTAL_SIZE];
-    static uint8_t g_rohc_cache_buf[IO_DATA_CACHE_BUF_TOTAL_SIZE];
-    static uint8_t g_rohc_len_rec_cache_buf[IO_LEN_REC_CACHE_BUF_TOTAL_SIZE];
-
-    static rohc_buf_t ip_cache;
-    static rohc_buf_t pcap_cache;
-    static rohc_buf_t rohc_cache;
-    static rohc_buf_t rohc_len_rec_cache;
-
-    if (cache_type == CACHE_DUMP_INIT)
-    {
-        ip_cache   = rohc_buf_init(g_ip_cache_buf, IO_DATA_CACHE_BUF_TOTAL_SIZE, true);
-        pcap_cache = rohc_buf_init(g_pcap_cache_buf, IO_DATA_CACHE_BUF_TOTAL_SIZE, true);
-        rohc_cache = rohc_buf_init(g_rohc_cache_buf, IO_DATA_CACHE_BUF_TOTAL_SIZE, true);
-        rohc_len_rec_cache = rohc_buf_init(g_rohc_len_rec_cache_buf, IO_LEN_REC_CACHE_BUF_TOTAL_SIZE, true);
-        printf("init cache buffer\n");
-    }
-    else if (cache_type == CACHE_DUMP_FLUSH)
-    {
-        flush_cache_to_file(&ip_cache, ctx->fp_udp_ip_dump);
-        flush_cache_to_file(&rohc_cache, ctx->fp_rohc_dump);
-        flush_cache_to_file(&pcap_cache, ctx->fp_pcap_dump);
-        flush_cache_to_file(&rohc_len_rec_cache, ctx->fp_rohc_pkt_len_dump);
-        printf("flush cache buffer to file\n");
-    }
-    else
-    {
-        if (rohc_buf_get_data_size(ip_cache) >= IO_DATA_CACHE_BUF_FULL_SIZE)
-        {
-            ROHC_LOG_DEBUG("udp-ip data full %d, flush cache\n",
-                           rohc_buf_get_data_size(ip_cache));
-            flush_cache_to_file(&ip_cache, ctx->fp_udp_ip_dump);
-        }
-
-        if (rohc_buf_get_data_size(pcap_cache) >= IO_DATA_CACHE_BUF_FULL_SIZE)
-        {
-            ROHC_LOG_DEBUG("pcap data full %d, flush cache\n",
-                           rohc_buf_get_data_size(pcap_cache));
-            flush_cache_to_file(&pcap_cache, ctx->fp_pcap_dump);
-        }
-
-        if (rohc_buf_get_data_size(rohc_cache) >= IO_DATA_CACHE_BUF_FULL_SIZE)
-        {
-            ROHC_LOG_DEBUG("rohc data full %d, flush cache\n",
-                           rohc_buf_get_data_size(rohc_cache));
-            flush_cache_to_file(&rohc_cache, ctx->fp_rohc_dump);
-        }
-
-        if (rohc_buf_get_data_size(rohc_len_rec_cache) >= IO_LEN_REC_CACHE_BUF_FULL_SIZE)
-        {
-            ROHC_LOG_DEBUG("rohc data full %d, flush cache\n",
-                           rohc_buf_get_data_size(rohc_len_rec_cache));
-            flush_cache_to_file(&rohc_len_rec_cache, ctx->fp_rohc_pkt_len_dump);
-        }
-    }
-
-    if (src_buf != NULL)
-    {
-        switch (cache_type)
-        {
-        case CACHE_DUMP_IP:
-            ROHC_LOG_DEBUG("new ip data type size %d, buf size %d\n",
-                           rohc_buf_get_data_size(*src_buf),
-                           rohc_buf_get_data_size(ip_cache));
-            if (!rohc_buf_append_buf(&ip_cache, *src_buf))
-            {
-                assert(0);
-            }
-            break;
-
-        case CACHE_DUMP_PCAP:
-            ROHC_LOG_DEBUG("new pcap data type size %d, buf size %d\n",
-                           rohc_buf_get_data_size(*src_buf),
-                           rohc_buf_get_data_size(pcap_cache));
-            if (!rohc_buf_append_buf(&pcap_cache, *src_buf))
-            {
-                assert(0);
-            }
-            break;
-
-        case CACHE_DUMP_ROHC:
-            ROHC_LOG_DEBUG("new rohc data type size %d, buf size %d\n",
-                           rohc_buf_get_data_size(*src_buf),
-                           rohc_buf_get_data_size(rohc_cache));
-            if (!rohc_buf_append_buf(&rohc_cache, *src_buf))
-            {
-                assert(0);
-            }
-            break;
-
-        case CACHE_DUMP_ROHC_LEN:
-            ROHC_LOG_DEBUG("new len_rec data type size %d, buf size %d\n",
-                           rohc_buf_get_data_size(*src_buf),
-                           rohc_buf_get_data_size(rohc_len_rec_cache));
-
-            if (!rohc_buf_append_buf(&rohc_len_rec_cache, *src_buf))
-            {
-                assert(0);
-            }
-            break;
-        default:
-            break;
-        }
-    }
-}
 
 static void gen_pcap_global_header(rohc_buf_t *const pcap_buf)
 {
@@ -266,7 +130,7 @@ static void pack_pcap_packet(struct rohc_comp_test_context *ctx, rohc_buf_t ip_p
         assert(0);
     }
 
-    cache_file_write(ctx, CACHE_DUMP_PCAP, &pcap_pkt);
+    rohc_cache_fwrite(ctx->cfp_pcap, &pcap_pkt);
 }
 
 static uint16_t gen_udp_ipv4_payload(uint8_t *const payload,
@@ -332,16 +196,45 @@ static struct rohc_comp_test_context* test_init(const struct rohc_test_config  t
 
     memset(ctx, 0, sizeof(alloc_size));
 
-    ctx->fp_udp_ip_dump = fopen("udp_ip_dump.bin", "wb");
-    ctx->fp_pcap_dump   = fopen("udp_ip.pcap", "wb");
-    ctx->fp_rohc_dump   = fopen("rohc_dump.bin", "wb");
-    ctx->fp_rohc_pkt_len_dump = fopen("rohc_packet_len_rec.bin", "w");
+    ctx->cfp_ip = rohc_cache_fopen("udp_ip_dump.bin", "wb",
+                                   DATA_CACHE_BUF_SIZE, IP_PACKET_SIZE_MAX);
 
-    cache_file_write(ctx, CACHE_DUMP_INIT, NULL);
+    if (ctx->cfp_ip == NULL)
+    {
+        ROHC_LOG_WARN("open cfp ip fail\n");
+        goto test_init_fail;
+    }
+
+    ctx->cfp_pcap = rohc_cache_fopen("udp_ip.pcap", "wb",
+                                     DATA_CACHE_BUF_SIZE, PCAP_PACKET_MAX_SIZE);
+
+    if (ctx->cfp_pcap == NULL)
+    {
+        ROHC_LOG_WARN("open cfp pcap fail\n");
+        goto test_init_fail;
+    }
+
+    ctx->cfp_rohc = rohc_cache_fopen("rohc_dump.bin", "wb",
+                                     DATA_CACHE_BUF_SIZE, ROHC_PACKET_SIZE_MAX);
+
+    if (ctx->cfp_rohc == NULL)
+    {
+        ROHC_LOG_WARN("open cfp rohc fail\n");
+        goto test_init_fail;
+    }
+
+    ctx->cfp_rohc_len_rec = rohc_cache_fopen("rohc_packet_len_rec.bin", "w",
+                                             LEN_REC_CACHE_BUF_SIZE, 64);
+
+    if (ctx->cfp_rohc_len_rec == NULL)
+    {
+        ROHC_LOG_WARN("open cfp rohc len rec fail\n");
+        goto test_init_fail;
+    }
 
     if ((cid_type == ROHC_SMALL_CID) && (test_cfg.strm_num >= 16))
     {
-        ROHC_LOG_INFO("adjust to large CID case due to strm num exceeds small cid max");
+        ROHC_LOG_INFO("adjust to large CID case due to strm num exceeds small cid max\n");
         cid_type = ROHC_LARGE_CID;
     }
 
@@ -362,6 +255,7 @@ static struct rohc_comp_test_context* test_init(const struct rohc_test_config  t
         if (test_cfg.ip_id_behave == IP_ID_STATIC_IP_ID)
         {
             ctx->cfg[k].ip_id = k + 0x4000;
+
             ROHC_LOG_INFO("static ip_id case, set ip_id %d(0x%x)\n",
                           ctx->cfg[k].ip_id,
                           ctx->cfg[k].ip_id);
@@ -376,6 +270,15 @@ static struct rohc_comp_test_context* test_init(const struct rohc_test_config  t
     }
 
     return ctx;
+
+test_init_fail:
+    rohc_cache_fclose(ctx->cfp_ip);
+    rohc_cache_fclose(ctx->cfp_pcap);
+    rohc_cache_fclose(ctx->cfp_rohc);
+    rohc_cache_fclose(ctx->cfp_rohc_len_rec);
+
+    free(ctx);
+    return NULL;
 }
 
 static void test_deinit(struct rohc_comp_test_context *ctx)
@@ -387,30 +290,10 @@ static void test_deinit(struct rohc_comp_test_context *ctx)
 
     rohc_release_compressor(ctx->comp_idx);
 
-    cache_file_write(ctx, CACHE_DUMP_FLUSH, NULL);
-    if (ctx->fp_udp_ip_dump)
-    {
-        fflush(ctx->fp_udp_ip_dump);
-        fclose(ctx->fp_udp_ip_dump);
-    }
-
-    if (ctx->fp_rohc_dump)
-    {
-        fflush(ctx->fp_rohc_dump);
-        fclose(ctx->fp_rohc_dump);
-    }
-
-    if (ctx->fp_rohc_pkt_len_dump)
-    {
-        fflush(ctx->fp_rohc_pkt_len_dump);
-        fclose(ctx->fp_rohc_pkt_len_dump);
-    }
-
-    if (ctx->fp_pcap_dump)
-    {
-        fflush(ctx->fp_pcap_dump);
-        fclose(ctx->fp_pcap_dump);
-    }
+    rohc_cache_fclose(ctx->cfp_ip);
+    rohc_cache_fclose(ctx->cfp_pcap);
+    rohc_cache_fclose(ctx->cfp_rohc);
+    rohc_cache_fclose(ctx->cfp_rohc_len_rec);
 
     free(ctx);
 
@@ -499,7 +382,7 @@ static void test_rohc_compress(const struct rohc_test_config  test_cfg)
 
             ip_pkt = rohc_buf_init(g_ip_buf, ip_tot_len, false);
 
-            cache_file_write(ctx, CACHE_DUMP_IP, &ip_pkt);
+            rohc_cache_fwrite(ctx->cfp_ip, &ip_pkt);
 
             pack_pcap_packet(ctx, ip_pkt);
 
@@ -511,8 +394,9 @@ static void test_rohc_compress(const struct rohc_test_config  test_cfg)
                 ROHC_LOG_ERROR("rohc compress ret %d fail\n", (uint32_t)ret);
             }
 
-            ROHC_LOG_DEBUG("last rohc pkt info: "
-                           "SN (%d), ip_id %d, pktType %d, cid %d, cid type%d, static size %d, dyn size%d\n",
+            ROHC_LOG_DEBUG("***last rohc pkt info: ***\n"
+                           "len %d, SN (%d), ip_id %d, pktType %d, cid %d, cid type%d, static %d, dyn%d\n",
+                           rohc_pkt.len,
                            rohc_info.SN,
                            rohc_info.ip_id,
                            rohc_info.packet_type,
@@ -540,16 +424,15 @@ static void test_rohc_compress(const struct rohc_test_config  test_cfg)
                 continue;
             }
 
-            cache_file_write(ctx, CACHE_DUMP_ROHC, &rohc_pkt);
+            rohc_cache_fwrite(ctx->cfp_rohc, &rohc_pkt);
 
             if (snprintf(rohc_pkt_len_rec_str, 7, "%d\n", (uint32_t)rohc_pkt.len) > 0)
             {
-                printf("rohc pkt len %d\n", rohc_pkt.len);
                 rohc_len_rec = rohc_buf_init((uint8_t *)rohc_pkt_len_rec_str,
                                              strlen(rohc_pkt_len_rec_str),
                                              false);
 
-                cache_file_write(ctx, CACHE_DUMP_ROHC_LEN, &rohc_len_rec);
+                rohc_cache_fwrite(ctx->cfp_rohc_len_rec, &rohc_len_rec);
             }
         }
     }
